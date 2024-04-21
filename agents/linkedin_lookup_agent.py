@@ -1,7 +1,4 @@
-from dotenv import load_dotenv
-
-load_dotenv()
-from langchain_openai import ChatOpenAI
+from langchain_openai import AzureChatOpenAI
 from langchain.prompts.prompt import PromptTemplate
 from langchain_core.tools import Tool
 from langchain.agents import (
@@ -10,12 +7,14 @@ from langchain.agents import (
 )
 from langchain import hub
 from tools.tools import get_profile_url_tavily
+from dotenv import load_dotenv
 
+load_dotenv()
 
 def lookup(name: str) -> str:
-    llm = ChatOpenAI(
+    llm = AzureChatOpenAI(
         temperature=0,
-        model_name="gpt-3.5-turbo",
+        model_name="gpt-35-turbo",
     )
     template = """given the full name {name_of_person} I want you to get it me a link to their Linkedin profile page.
                               Your answer should contain only a URL"""
@@ -31,7 +30,21 @@ def lookup(name: str) -> str:
         )
     ]
 
-    react_prompt = hub.pull("hwchase17/react")
+    # react_prompt = hub.pull("hwchase17/react")
+    
+    react_prompt = PromptTemplate(
+        input_variables = ["agent_scratchpad", "input", "tool_names", "tools"], 
+        template = """
+        Answer the following questions as best you can. You have access to the following tools: {tools} Use the following format:
+    Question: the input question you must answer 
+    Thought: you should always think about what to do
+    Action: the action to take, should be one of [{tool_names}]
+    Action Input: the input to the action
+    Observation: the result of the action
+    ... (this Thought/Action/Action Input/Observation can repeat N times)
+    Thought: I now know the final answer
+    Final Answer: the final answer to the original input question
+    Begin! Question: {input} Thought:{agent_scratchpad}""")
     agent = create_react_agent(llm=llm, tools=tools_for_agent, prompt=react_prompt)
     agent_executor = AgentExecutor(agent=agent, tools=tools_for_agent, verbose=True)
 
